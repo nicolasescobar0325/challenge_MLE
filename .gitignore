@@ -1,1 +1,5 @@
 .netrc
+.venv
+.python-version
+.netrc
+.ipynb_checkpoints
