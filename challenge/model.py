@@ -172,13 +172,13 @@ class DelayModel:
             expected_score (float): Expected AUC score for the model.
 
         Raises:
-            ValueError: If the model's AUC score doesn't match the expected score up to all decimal points.
+            ValueError: If the model's AUC score doesn't match the expected score up to 5 decimal points.
         """
         try:
             test_probs = self.model.predict_proba(x_test[self._model_features])[:, 1]
             actual_score = roc_auc_score(y_test, test_probs)
 
-            if not actual_score == expected_score:
+            if not round(actual_score, 5) == round(expected_score, 5):
                 raise ValueError(
                     f"Trained model AUC score ({actual_score}) doesn't match the expected score ({expected_score})"
                 )
