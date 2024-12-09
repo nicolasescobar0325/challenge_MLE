@@ -4,22 +4,27 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
+from sklearn.utils.validation import check_is_fitted
 from typing import Tuple, Union, List
 import json
 import numpy as np
-from feature_transformation import create_target, is_high_season, get_period_day
+from challenge.feature_transformation import create_target, is_high_season, get_period_day
+import os
 
-# Configure logging
+import warnings
+
+warnings.filterwarnings('ignore')
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 MODEL_VERSION = 'v1'
-CONFIG_PATH = f'challenge/config/{MODEL_VERSION}/config.json'
+ARTIFACTS_PATH = f'challenge/artifacts/{MODEL_VERSION}'
 
 
 class DelayModel:
     def __init__(self):
         try:
-            with open(CONFIG_PATH, 'r') as file:
+            with open(os.path.join(ARTIFACTS_PATH, 'config.json'), 'r') as file:
                 self.config = json.load(file)
             logging.info("Configuration loaded successfully.")
         except FileNotFoundError as e:
@@ -32,16 +37,18 @@ class DelayModel:
         self._model_params = self.config.get("model_params")
         self._model_features = self.config.get("model_features")
         self._dataset_columns = self.config.get("dataset_columns")
-        self._class_weights = {int(k): v for k, v in self.config.get("class_weights").items()}
         self._test_size = self.config.get("test_size")
+        self._class_weights = {int(k): v for k, v in self.config.get("class_weights").items()}
         self._train_test_split_seed = self.config.get("train_test_split_seed", 42)
         self._training_shuffle_seed = self.config.get("training_shuffle_seed", 111)
-        self._target_required_columns = self.config.get("_target_required_columns")
+        self._target_required_column = self.config.get("target_required_column")
         self._threshold_in_minutes = self.config.get("threshold_in_minutes")
-        self._validation_score = self.config.get("validation_score")
+        self._validation_score = self.config.get("validation_score", None)
         self._training_data_path = self.config.get("training_data_path")
 
         self._model = LogisticRegression(**self._model_params)
+        self._model = LogisticRegression(class_weight=self._class_weights)
+        self._model_is_fitted = False
 
     @property
     def model(self):
@@ -59,7 +66,8 @@ class DelayModel:
     def training_data_path(self, data_path):
         self._training_data_path = data_path
 
-    def preprocess(self, data: pd.DataFrame, target_column: str = None) -> Union[Tuple[pd.DataFrame, pd.Series], pd.DataFrame]:
+    def preprocess(self, data: pd.DataFrame, target_column: str = None) -> Union[Tuple[pd.DataFrame, pd.Series], 
+                                                                                 pd.DataFrame]:
         """
         Prepare raw data for training or predict.
 
@@ -87,10 +95,17 @@ class DelayModel:
                 #data['HIGH_SEASON']
                 
             ], axis=1)
+        
+            missing_cols = set(self._model_features) - set(features.columns)
+
+            for col in missing_cols:
+                features[col] = 0
+
+            features = features[self._model_features]
 
             if target_column:
-                target = create_target(data, self._threshold_in_minutes, self._target_required_columns)
-                return features, target
+                target = create_target(data, self._threshold_in_minutes, self._target_required_column)
+                return features, pd.DataFrame(target, columns=[target_column])
             else:
                 return features
         except Exception as e:
@@ -107,15 +122,14 @@ class DelayModel:
         """
         try:
             x_train, x_test, y_train, y_test = train_test_split(
-                features[self._model_features], target,
+                features, target,
                 test_size=self._test_size,
                 random_state=self._train_test_split_seed
             )
-            self.model.set_params(class_weight=self._class_weights)
             self.model.fit(x_train, y_train)
+            self._model_is_fitted = True
             logging.info("Model trained successfully.")
 
-            # Validate if a validation score is provided
             if self._validation_score:
                 self.validate_model_accuracy(x_test, y_test, self._validation_score)
         except Exception as e:
@@ -132,13 +146,19 @@ class DelayModel:
         Returns:
             (List[int]): predicted targets.
         """
-        try:
-            predictions = self.model.predict(features[self._model_features]).tolist()
-            logging.info(f"Prediction completed. Total predictions: {len(predictions)}")
-            return predictions
-        except Exception as e:
-            logging.error(f"Error during prediction: {e}")
-            raise
+        #if self.model
+        if self._model_is_fitted:
+            try:
+                predictions = self.model.predict(features[self._model_features]).tolist()
+                logging.info(f"Prediction completed. Total predictions: {len(predictions)}")
+                return predictions
+            except Exception as e:
+                logging.error(f"Error during prediction: {e}")
+                raise
+        else:
+            logging.info("Model not fitted. Running training pipeline...")
+            self.run_training_pipeline()
+            return self.predict(features)
 
     def validate_model_accuracy(self, x_test: pd.DataFrame, y_test: pd.Series, expected_score: float) -> None:
         """
@@ -165,9 +185,8 @@ class DelayModel:
             logging.error(f"Error during model validation: {e}")
             raise
 
-
-if __name__ == '__main__':
-    delay_model = DelayModel()
-    df = pd.read_csv('./data/data.csv')#delay_model.training_data_path)
-    features, target = delay_model.preprocess(df, target_column='si')
-    delay_model.fit(features, target)
+    def run_training_pipeline(self) -> None:
+        file_directory = os.path.dirname(os.path.abspath(__file__))
+        data = pd.read_csv(os.path.join(file_directory, self._training_data_path))
+        features, target = self.preprocess(data, target_column='delay')
+        self.fit(features, target)

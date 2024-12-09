@@ -47,7 +47,7 @@ def get_period_day(date):
     return None
 
 
-def get_min_diff(data: pd.DataFrame) -> np.Series:
+def get_min_diff(data: pd.DataFrame) -> pd.Series:
     try:
         operation_date = datetime.strptime(
             data['Fecha-O'], '%Y-%m-%d %H:%M:%S')
@@ -59,11 +59,12 @@ def get_min_diff(data: pd.DataFrame) -> np.Series:
     return min_diff
 
 
-def create_target(target_input_data: pd.DataFrame, threshold_in_minutes: int, 
-                  target_required_columns: list) -> np.Series:
+def create_target(target_input_data: pd.DataFrame, threshold_in_minutes: int,
+                  target_required_column: str) -> pd.Series:
     
-    if target_required_columns not in target_input_data:
-        raise ValueError()
+    if target_required_column not in target_input_data:
+        raise ValueError(f'Column {target_required_column} not found in input data')
+    
     target_input_data['min_diff'] = target_input_data.apply(
         get_min_diff, axis=1)
     return np.where(target_input_data['min_diff'] > threshold_in_minutes, 1, 0)
