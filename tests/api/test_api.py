@@ -10,7 +10,7 @@ class TestBatchPipeline(unittest.TestCase):
         
     def test_should_get_predict(self):
         data = {
-            "flights": [
+            "data": [
                 {
                     "OPERA": "Aerolineas Argentinas", 
                     "TIPOVUELO": "N", 
@@ -26,7 +26,7 @@ class TestBatchPipeline(unittest.TestCase):
 
     def test_should_failed_unkown_column_1(self):
         data = {       
-            "flights": [
+            "data": [
                 {
                     "OPERA": "Aerolineas Argentinas", 
                     "TIPOVUELO": "N",
@@ -40,7 +40,7 @@ class TestBatchPipeline(unittest.TestCase):
 
     def test_should_failed_unkown_column_2(self):
         data = {        
-            "flights": [
+            "data": [
                 {
                     "OPERA": "Aerolineas Argentinas", 
                     "TIPOVUELO": "O", 
@@ -54,7 +54,7 @@ class TestBatchPipeline(unittest.TestCase):
     
     def test_should_failed_unkown_column_3(self):
         data = {        
-            "flights": [
+            "data": [
                 {
                     "OPERA": "Argentinas", 
                     "TIPOVUELO": "O", 
