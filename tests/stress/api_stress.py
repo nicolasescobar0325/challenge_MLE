@@ -7,7 +7,7 @@ class StressUser(HttpUser):
         self.client.post(
             "/predict", 
             json={
-                "flights": [
+                "data": [
                     {
                         "OPERA": "Aerolineas Argentinas", 
                         "TIPOVUELO": "N", 
@@ -23,7 +23,7 @@ class StressUser(HttpUser):
         self.client.post(
             "/predict", 
             json={
-                "flights": [
+                "data": [
                     {
                         "OPERA": "Grupo LATAM", 
                         "TIPOVUELO": "N", 

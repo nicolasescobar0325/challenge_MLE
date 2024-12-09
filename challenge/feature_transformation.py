@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from challenge.data_validation import validate_target_required_columns
 
 
 def is_high_season(date):
@@ -60,10 +61,9 @@ def get_min_diff(data: pd.DataFrame) -> pd.Series:
 
 
 def create_target(target_input_data: pd.DataFrame, threshold_in_minutes: int,
-                  target_required_column: str) -> pd.Series:
+                  target_required_columns: str) -> pd.Series:
     
-    if target_required_column not in target_input_data:
-        raise ValueError(f'Column {target_required_column} not found in input data')
+    validate_target_required_columns(target_input_data, target_required_columns)
     
     target_input_data['min_diff'] = target_input_data.apply(
         get_min_diff, axis=1)

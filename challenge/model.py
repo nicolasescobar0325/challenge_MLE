@@ -9,6 +9,7 @@ from typing import Tuple, Union, List
 import json
 import numpy as np
 from challenge.feature_transformation import create_target, is_high_season, get_period_day
+from challenge.data_validation import validate_model_features, validate_column_names, validate_categorical_values
 import os
 
 import warnings
@@ -41,10 +42,11 @@ class DelayModel:
         self._class_weights = {int(k): v for k, v in self.config.get("class_weights").items()}
         self._train_test_split_seed = self.config.get("train_test_split_seed", 42)
         self._training_shuffle_seed = self.config.get("training_shuffle_seed", 111)
-        self._target_required_column = self.config.get("target_required_column")
+        self._target_required_columns = self.config.get("target_required_columns")
         self._threshold_in_minutes = self.config.get("threshold_in_minutes")
         self._validation_score = self.config.get("validation_score", None)
         self._training_data_path = self.config.get("training_data_path")
+        self._categorical_features_values = self.config.get("categorical_features_values")
 
         self._model = LogisticRegression(**self._model_params)
         self._model = LogisticRegression(class_weight=self._class_weights)
@@ -93,7 +95,6 @@ class DelayModel:
                 #pd.get_dummies(data['DIANOM'], prefix = 'DIANOM'),
                 #pd.get_dummies(data['PERIOD_DAY'], prefix = 'PERIOD_DAY'),
                 #data['HIGH_SEASON']
-                
             ], axis=1)
         
             missing_cols = set(self._model_features) - set(features.columns)
@@ -104,7 +105,7 @@ class DelayModel:
             features = features[self._model_features]
 
             if target_column:
-                target = create_target(data, self._threshold_in_minutes, self._target_required_column)
+                target = create_target(data, self._threshold_in_minutes, self._target_required_columns)
                 return features, pd.DataFrame(target, columns=[target_column])
             else:
                 return features
@@ -146,7 +147,8 @@ class DelayModel:
         Returns:
             (List[int]): predicted targets.
         """
-        #if self.model
+        validate_model_features(features, self._model_features)
+
         if self._model_is_fitted:
             try:
                 predictions = self.model.predict(features[self._model_features]).tolist()
@@ -186,7 +188,19 @@ class DelayModel:
             raise
 
     def run_training_pipeline(self) -> None:
+        """
+        Runs the whole training pipeline and fits a model.
+
+        """
         file_directory = os.path.dirname(os.path.abspath(__file__))
         data = pd.read_csv(os.path.join(file_directory, self._training_data_path))
         features, target = self.preprocess(data, target_column='delay')
         self.fit(features, target)
+
+    def run_data_validations(self, features) -> None:
+        """
+        Run data validations to ensure the model can make predictions.
+
+        """
+        validate_column_names(features, self._dataset_columns)
+        validate_categorical_values(features, self._categorical_features_values)
