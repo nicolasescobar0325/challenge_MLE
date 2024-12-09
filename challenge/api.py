@@ -5,6 +5,7 @@ import pandas as pd
 import logging
 from typing import List, Dict
 from challenge.model import DelayModel
+from challenge.data_validation import validate_column_names, validate_categorical_values
 import uvicorn
 
 app = fastapi.FastAPI()
@@ -29,9 +30,13 @@ async def post_predict(request: PredictionRequest) -> dict:
         data = request.data
         print(data)
         input_data = pd.DataFrame(request.data)
+        delay_model.run_data_validations(input_data)
         features = delay_model.preprocess(input_data)
         predictions = delay_model.predict(features)
-        return {"predictions": predictions}
+        return {"predict": predictions}
+    except ValueError as e:
+        logging.error(f"Error during prediction: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logging.error(f"Error during prediction: {e}")
         raise HTTPException(status_code=500, detail="An error occurred during prediction.")
