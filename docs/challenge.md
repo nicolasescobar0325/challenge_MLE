@@ -1,37 +1,63 @@
-Phase 1: Code review for file "exploration.ipynb"
+# Operationalizing and Deploying the Model
 
-Version of matplotlib is not allowing Jupyter to display barplots because of the class arguments. x= and y= added to every barplot to fix  this problem.
+## Part I
 
-Xgboost library does not make part of any requirements file. Adding version 1.5.0 to requirements.txt
+In order to operationalize the model, transcribe the `.ipynb` file into the `model.py` file:
 
-training_data = shuffle(data[['OPERA', 'MES', 'TIPOVUELO', 'SIGLADES', 'DIANOM', 'delay']], random_state = 111). The shuffle output is independent from the columns in the dataset, so it is unnecessary to filter the columns here (removing).
+- If you find any bug, fix it.
+- The DS proposed a few models in the end. Choose the best model at your discretion, argue why. **It is not necessary to make improvements to the model.**
+- Apply all the good programming practices that you consider necessary in this item.
+- The model should pass the tests by running `make model-test`.
 
-Also, the dataset for training doesn't seem to be including the created features 'period_day' and 'is_high_season' and also the Data Scientist didn't provide an explanation in why to discard those features so it might be consired as a bug. 
+> **Note:**
+> - **You cannot** remove or change the name or arguments of **provided** methods.
+> - **You can** change/complete the implementation of the provided methods.
+> - **You can** create the extra classes and methods you deem necessary.
 
-period_day is categorical, so it should be processed with OneHotEnconding
-is_high_season is binary, so it doesn't need to be processed
-min_diff is calculated with the actual flight datetime so it shouldn't be included in the model
+### MLE Takeout:
+- **BUG:** I fixed the preprocessing function to extract the `period_of_day` from flight time. The way it was defined left range corners uncovered, causing more than 1k null values.
+- **POSSIBLE-BUG:** During the exploratory analysis, the Data Scientist defined `training_dataset = shuffle(...)`. Even though it is a good approach, the defined DataFrame is not used after the definition. I did not fix this bug.
+- **POSSIBLE-BUG:** A lot of usable features were not included in the model, some from the raw data and others created with transforming functions. There is no hint from the Data Scientist of the reasons not to use these features that seem to have predictive power (as seen in the exploratory analysis plots). I did not fix this bug but created the transforming functions as part of the pipeline for future use.
+- **SUGGESTION:** During the exploratory phase, the Data Scientist selected the top 10 most important features from XGBoost to reduce dataset dimensionality. Even though this may not be harmful, it may be problematic to assume that both a tree-boosted model and a logistic regression will algorithmically learn the same way from the features. Additionally, the feature importance method from the XGBoost library does not account for feature interactions, making it less reliable than other methods like SHAP. I didn’t address this since the challenge mentioned not to improve the model.
+- **IMPROVEMENTS:** To run the code, I had to include/change some libraries in the requirements files.
 
-features = pd.concat([
-    pd.get_dummies(data['OPERA'], prefix = 'OPERA'),
-    pd.get_dummies(data['TIPOVUELO'], prefix = 'TIPOVUELO'), 
-    pd.get_dummies(data['MES'], prefix = 'MES')], 
-    axis = 1
-)
-target = data['delay']
+---
 
-features definition is not using 'SIGLADES', 'DIANOM', 'period_day' or 'is_high_season'. For this use-case we will discard SIGLADES because of high dimentionality and also we are not certain if there are destine locations not included in the provided dataset (to include it or not will require a discussion with the Data Scientist).
-After including 'period_day' and 'is_high_season', the top10 of features change.
+## Part II
 
-period_day custom feature does not cover the case of 00:00 -TO-REVIEW-
+Deploy the model in an `API` with `FastAPI` using the `api.py` file.
 
-SUGGESTED IMPROVEMENTS: 
-The data scientist uses XGBOOST model to extract the 10 most important features. While this method can help to reduce the dimentionality of the dataset it also makes an assumption that the most important features for XGBoost are the same than the LinearModel, which may not hold true since each algorithm relies on completely different modeling approaches. Also, the method used to evaluate feature_importances in xgboost has a big downfall because it does not account for feature interactions/dependencies, a more reliable method to use here is SHAP.
+- The `API` should pass the tests by running `make api-test`.
 
-Model selection: 
-Since we are not supposed to improve the modeling process, we will select the model based in efficiency. LinearRegression is a better option since it has a lower response latency for prediction, it also is a less complex model and a more interpretable one. XGBoost is a better option if there is future development that might require model complexity but since this is not mentioned in the case it won't be taken into account. 
+> **Note:** 
+> - **You cannot** use another framework.
 
-Phase 2: Create model.py
+### MLE Takeout:
+- I had to redefine testing API calls, as they were defined as `flights`, which breaks the Pydantic standard of `data`. Fixing this to take `flights` correctly with FastAPI required adding complexity to the service definition.
 
+---
 
+## Part III
 
+Deploy the `API` in your favorite cloud provider (we recommend using GCP).
+
+- Put the `API`'s URL in the `Makefile` (`line 26`).
+- The `API` should pass the tests by running `make stress-test`.
+
+> **Note:** 
+> - **It is important that the API is deployed until we review the tests.**
+
+### MLE Takeout:
+- Even though I was able to finish the coding part on time and make the code pass the tests correctly, I had a problem with GCP to set my billing account. This issue blocked me, as it didn’t allow me to use the Cloud Build service.
+
+---
+
+## Part IV
+
+We are looking for a proper `CI/CD` implementation for this development.
+
+- Create a new folder called `.github` and copy the `workflows` folder we provided inside it.
+- Complete both `ci.yml` and `cd.yml` (consider what you did in the previous parts).
+
+### MLE Takeout:
+- Done.
