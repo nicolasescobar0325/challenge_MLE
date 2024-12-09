@@ -60,4 +60,4 @@ We are looking for a proper `CI/CD` implementation for this development.
 - Complete both `ci.yml` and `cd.yml` (consider what you did in the previous parts).
 
 ### MLE Takeout:
-- Done.
+- I have implemented CI/CD using GitHub Actions and GCP Services (were not able to deploy because of billing problems).
